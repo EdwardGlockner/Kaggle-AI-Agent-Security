@@ -1,0 +1,18 @@
+{
+  "agent": "deterministic",
+  "agent_selection": "deterministic",
+  "attack_env_seed": 123,
+  "budget_s": 30.0,
+  "exp_id": "EXP-004",
+  "findings_count": 0,
+  "fixtures_dir": "data/competition/aicomp_sdk/fixtures",
+  "guardrail_id": "optimal_public",
+  "guardrail_version": "1",
+  "run_id": "cb1e007d363a",
+  "score": 0.0,
+  "score_raw": 0.0,
+  "time_taken_s": 1.872689962387085,
+  "unique_canonical_cells": 0,
+  "unique_cells": 0,
+  "wall_time_s": 1.901261874998454
+}

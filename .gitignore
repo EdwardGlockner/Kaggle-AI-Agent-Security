@@ -1,0 +1,15 @@
+.DS_Store
+.pytest_cache/
+.venv/
+__pycache__/
+data/
+submission.csv
+# Kaggle upload staging (generated, not versioned)
+dist/
+
+# Internal tool state (not versioned)
+.aicomp/
+
+# Temp / OS
+.DS_Store
+Thumbs.db
