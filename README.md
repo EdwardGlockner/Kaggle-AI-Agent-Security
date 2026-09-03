@@ -1,94 +1,72 @@
 # AI Agent Security: Multi-Step Tool Attacks
 
-Final research implementation for Kaggle's [AI Agent Security: Multi-Step Tool Attacks](https://www.kaggle.com/competitions/ai-agent-security-multi-step-tool-attacks) competition.
+My first Kaggle competition: [AI Agent Security: Multi-Step Tool Attacks](https://www.kaggle.com/competitions/ai-agent-security-multi-step-tool-attacks).
 
-## Result
+**Result:** 473rd out of 4,251 teams, top 11.1%.
 
-- Final placement: **473 / 4251**
-- Percentile: **top 11.1%**
-- Final representative submission: **SUB-019 v68 Dual-Heavy**
-- Final SUB-019 scores: **67.675 public / 2.415 private**
-- Best public development score: **69.755** (SUB-007)
-- Final evaluated on **September 2, 2026**
+## Overview
 
-This was my first Kaggle competition. The project focused on red-teaming tool-using agents by generating replayable prompt chains that trigger security findings under a constrained evaluator.
+Kaggle gives the program a language model with access to tools such as web requests and email. The goal is to find short messages that make the model use one of those tools in a security-relevant way. Kaggle then replays the successful messages against hidden evaluation rows.
 
-## What This Repo Does
+The submission works like an attack generator. It sends a candidate message, watches the tool call the model actually makes, and keeps the message only when that call triggers one of the competition's scoring rules. It then repeats the process with different prompt forms and different fake destinations.
 
-The submission runs `AttackAlgorithm.run(env, config)` from `kaggle_submission.py`. The algorithm explores a sandboxed tool-using agent and returns replayable `AttackCandidate` prompt sequences whose traces trigger a scoring predicate.
+In practice, a useful candidate had to satisfy three conditions at once:
 
-The project concentrates on the final selected submission and a deterministic validation harness. The full time-ordered notebook and submission archive is retained locally but intentionally excluded from the public repository.
+- The model has to follow it and make a tool call.
+- The tool call has to trigger a scored security predicate.
+- It has to be cheap enough to replay many times before the time budget expires.
 
-## Project Highlights
+The evaluator rewarded both severity and diversity. Finding one strong behavior was not enough; repeating an identical tool-call pattern stopped adding value. At the same time, a prompt that produced more actions could be worse overall if it made the model spend too long generating them.
 
-- Built a reproducible experiment loop across local tests and Kaggle-hosted notebooks
-- Investigated scoring behavior, replay limits, latency bottlenecks, and candidate diversity
-- Compared multiple attack families, including direct exfiltration, mixed-surface prompts, multi-event prompts, and minimal-discovery emitters
-- Summarized the key findings and limitations in [the research summary](docs/research-summary.md)
+## How My Solution Works
 
-## Repo Structure
+The final implementation is [kaggle_submission.py](kaggle_submission.py). Each candidate follows this path:
 
-- [kaggle_submission.py](kaggle_submission.py): the final SUB-019 v68 Dual-Heavy implementation
-- [scripts/scoring_oracle.py](scripts/scoring_oracle.py): deterministic evaluator smoke check
-- [scripts/local_dryrun.py](scripts/local_dryrun.py): end-to-end dry run with a compliant stand-in agent
-- [docs/research-summary.md](docs/research-summary.md): methods, findings, and final outcome
-- [tests/](tests): contract and integration tests
+```text
+prompt template -> model tool call -> execution trace -> predicate check -> deduplication -> replayable candidate
+```
 
-## Why `kaggle_submission.py`?
+1. The submission first looks for model metadata in the environment. If that information is unavailable, it runs a small timing probe to distinguish the GPT-OSS and Gemma backends.
+2. It generates a repeating four-prompt bundle. Three prompts ask for a compact `http.post` call; the fourth combines a notification request with the same post action. The destination URL changes on every candidate so the replayed actions are not all the same scoring cell.
+3. Before each candidate, it resets the environment. It allows only one tool hop, because the score was recorded on the tool action and waiting for the model's follow-up response was usually wasted time.
+4. After each message, it reads the trace and evaluates the competition predicates. When a predicate fires, it keeps only the shortest prefix that caused it.
+5. It hashes the observed tool-call cell and drops duplicates. It stops at the candidate cap, maximum-step limit, or a deadline that reserves 60 seconds for the evaluator.
 
-This is the one implementation that represents the final leaderboard result. SUB-019 was the only selected final submission with a nonzero private score; Kaggle required its source to be named `attack.py`, so the notebook copied this file to `/kaggle/working/attack.py` before starting the evaluator.
+The result is deliberately conservative: every returned candidate was verified in the environment before being handed back to Kaggle for replay.
 
-## Competition Contract
+## What I Learned
 
-- Target models: GPT-OSS 20B and Gemma 4 26B-A4B-it
-- Environment methods: `reset`, `interact`, `export_trace_dict`, `snapshot`, `restore`
-- Limits: 2,000 candidates, 32 messages per candidate, 10,000 characters per message, and 8 tool hops per interaction
-- Score: predicate severity plus tool-call-signature diversity, normalized to `0-1000`
-- Submission format: Kaggle notebook that writes `/kaggle/working/attack.py` and starts `JEDAttackInferenceServer`
+- Short, direct tool-call prompts were more reliable than long multi-step instructions on CPU-bound evaluation.
+- Latency mattered as much as raw severity. A multi-event prompt could look impressive in a small probe and still lose over a full submission run because it was slow.
+- Varying the URL and mixing a second prompt family helped reach more scoring cells, but it did not compensate for unreliable model behavior.
+- Local tests were excellent for ruling out weak ideas. They were not a perfect predictor of the hidden evaluation distribution, so each major change still had to be tested through a real Kaggle submission.
 
-## Setup
+## Repository Guide
 
-Accept the competition rules, install the Kaggle CLI, and download the SDK-backed competition data:
+- [kaggle_submission.py](kaggle_submission.py): final competition submission.
+- [scripts/local_dryrun.py](scripts/local_dryrun.py): end-to-end local run with a deterministic stand-in agent.
+- [scripts/scoring_oracle.py](scripts/scoring_oracle.py): smaller check that the candidate stream reaches the scorer.
+- [tests/](tests): contract tests for candidate generation, limits, deduplication, and predicate handling.
+- [docs/research-summary.md](docs/research-summary.md): experiment conclusions and limitations.
+
+## Run Locally
+
+Kaggle distributed the SDK with the competition data rather than as a normal Python package. After accepting the competition rules and downloading the data:
 
 ```bash
 python -m pip install kaggle
 kaggle competitions download -c ai-agent-security-multi-step-tool-attacks -p data
 unzip data/ai-agent-security-multi-step-tool-attacks.zip -d data/competition
-```
 
-The SDK is distributed with the competition data rather than as a standard dependency. Add the extracted dataset root to `PYTHONPATH` for local experiments:
-
-```bash
 export PYTHONPATH="$PWD/data/competition:$PYTHONPATH"
+.venv/bin/python -m unittest discover -s tests
+.venv/bin/python scripts/local_dryrun.py --budget 60
 ```
 
-Run the lightweight contract tests:
+The local dry run checks the integration and scoring path with a deterministic agent. It does not reproduce the hidden Kaggle leaderboard.
 
-```bash
-python -m unittest discover -s tests
-```
-
-## Validation
-
-Run the deterministic end-to-end smoke test:
-
-```bash
-PYTHONPATH=data/competition:$PYTHONPATH .venv/bin/python scripts/local_dryrun.py --budget 60
-```
-
-## Submission Context
-
-In a competition notebook, attach the competition data, write the contents of `kaggle_submission.py` to `/kaggle/working/attack.py`, then start the inference server:
-
-```python
-import kaggle_evaluation.jed_attack_134815.jed_attack_inference_server
-
-server = kaggle_evaluation.jed_attack_134815.jed_attack_inference_server
-server.JEDAttackInferenceServer().serve()
-```
-
-Notebook startup only validates packaging. The real scoring happens during Kaggle's rerun.
+For Kaggle packaging, this file was written to `/kaggle/working/attack.py`, which is the filename expected by the competition evaluator.
 
 ## Responsible Use
 
-This repository documents controlled research performed within a Kaggle competition sandbox. It is intended for evaluation, defensive research, and improving tool-using agent safeguards. Do not apply these techniques to systems, data, or services without explicit authorization.
+This project documents work performed in a controlled competition sandbox. It is for authorized evaluation and defensive research on tool-using AI systems. Do not apply these techniques to systems, data, or services without permission.
