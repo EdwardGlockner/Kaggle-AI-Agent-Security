@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from aicomp_sdk.agents.types import (
     AGENT_STATE_VERSION,
@@ -16,7 +21,7 @@ from aicomp_sdk.agents.types import (
 from aicomp_sdk.core.runtime_history import RuntimeHistory
 from aicomp_sdk.evaluation.runner import evaluate_redteam
 
-from attack import AttackAlgorithm
+from kaggle_submission import AttackAlgorithm
 
 
 class ScorerOracleAgent:

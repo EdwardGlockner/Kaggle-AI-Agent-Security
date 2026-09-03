@@ -2,6 +2,8 @@
 .pytest_cache/
 .venv/
 __pycache__/
+*.py[cod]
+.ipynb_checkpoints/
 data/
 submission.csv
 # Kaggle upload staging (generated, not versioned)
@@ -10,6 +12,8 @@ dist/
 # Internal tool state (not versioned)
 .aicomp/
 
+# Full competition workspace retained locally, intentionally excluded from GitHub.
+.research-archive/
+
 # Temp / OS
-.DS_Store
 Thumbs.db

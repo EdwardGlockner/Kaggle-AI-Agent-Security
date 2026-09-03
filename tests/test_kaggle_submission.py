@@ -46,8 +46,8 @@ def load_attack_module():
     sys.modules["aicomp_sdk.core"] = types.ModuleType("aicomp_sdk.core")
     sys.modules["aicomp_sdk.core.predicates"] = predicates
     sys.modules["aicomp_sdk.core.cells"] = cells
-    sys.modules.pop("attack", None)
-    return importlib.import_module("attack")
+    sys.modules.pop("kaggle_submission", None)
+    return importlib.import_module("kaggle_submission")
 
 
 def _patch_stream(attack, chains):
@@ -206,7 +206,7 @@ class AttackAlgorithmTest(unittest.TestCase):
 
         self.assertEqual(env.attempt, 0)
         # v7: intentionally caps hops to MAX_TOOL_HOPS_OVERRIDE (1) regardless
-        # of gateway config; see attack.py docstring / EXP-011.
+        # of gateway config; see the submission documentation / EXP-011.
         self.assertEqual(env.max_tool_hops, [min(3, attack.MAX_TOOL_HOPS_OVERRIDE)])
 
     def test_zero_steps_performs_no_interactions(self):
@@ -249,7 +249,7 @@ class AttackAlgorithmTest(unittest.TestCase):
 
 class ScorerOracleIntegrationTest(unittest.TestCase):
     def test_oracle_baseline_scores_under_public_guardrail(self):
-        sys.modules.pop("attack", None)
+        sys.modules.pop("kaggle_submission", None)
         for module_name in tuple(sys.modules):
             if module_name == "aicomp_sdk" or module_name.startswith("aicomp_sdk."):
                 sys.modules.pop(module_name, None)
@@ -259,8 +259,8 @@ class ScorerOracleIntegrationTest(unittest.TestCase):
         except ModuleNotFoundError:
             self.skipTest("vendored aicomp_sdk is not on PYTHONPATH")
 
-        from attack import AttackAlgorithm
-        from benchmark_oracle import ScorerOracleAgent
+        from kaggle_submission import AttackAlgorithm
+        from scripts.scoring_oracle import ScorerOracleAgent
 
         execution = evaluate_redteam(
             AttackAlgorithm,

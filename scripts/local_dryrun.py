@@ -1,4 +1,4 @@
-"""Local upper-bound dry run for attack.py.
+"""Local upper-bound dry run for the final Kaggle submission.
 
 Uses a lightweight compliant agent that parses each user message and emits the tool
 call the prompt asks for (http.post with url/data, or email.send to a parsed recipient).
@@ -8,7 +8,7 @@ guardrail so scores and cell hashes are computed identically to the Kaggle score
 This is not a substitute for the real Kaggle score (real LLMs will refuse some prompts,
 scorer-oracle behaves differently) but it does prove:
 
-    1. attack.py runs to completion without exceptions.
+    1. kaggle_submission.py runs to completion without exceptions.
     2. Candidates serialize / validate cleanly.
     3. `optimal_public.decide()` allows the intended tool calls.
     4. The scoring pipeline produces a nonzero score with the current candidate set.
@@ -42,7 +42,7 @@ from aicomp_sdk.agents.types import (  # noqa: E402
 from aicomp_sdk.core.runtime_history import RuntimeHistory  # noqa: E402
 from aicomp_sdk.evaluation.runner import evaluate_redteam  # noqa: E402
 
-from attack import AttackAlgorithm  # noqa: E402
+from kaggle_submission import AttackAlgorithm  # noqa: E402
 
 
 _URL_PATTERNS = [
@@ -205,7 +205,7 @@ def _make_agent_factory(exfil: float, email: float):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Local upper-bound dry run for attack.py")
+    parser = argparse.ArgumentParser(description="Local upper-bound dry run for kaggle_submission.py")
     parser.add_argument("--budget-s", type=float, default=120.0)
     parser.add_argument("--exfil-compliance", type=float, default=1.0)
     parser.add_argument("--email-compliance", type=float, default=1.0)
